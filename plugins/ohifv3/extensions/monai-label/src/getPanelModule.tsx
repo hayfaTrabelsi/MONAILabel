@@ -1,5 +1,6 @@
 import React from 'react';
 import MonaiLabelPanel from './components/MonaiLabelPanel';
+import AiAnalysisPanel from './components/AiAnalysisPanel';
 
 function getPanelModule({
   commandsManager,
@@ -16,6 +17,16 @@ function getPanelModule({
     );
   };
 
+  const WrappedAiAnalysisPanel = () => {
+    return (
+      <AiAnalysisPanel
+        commandsManager={commandsManager}
+        servicesManager={servicesManager}
+        extensionManager={extensionManager}
+      />
+    );
+  };
+
   return [
     {
       name: 'monailabel',
@@ -24,6 +35,14 @@ function getPanelModule({
       label: 'MONAI Label',
       secondaryLabel: 'MONAI Label',
       component: WrappedMonaiLabelPanel,
+    },
+    {
+      name: 'aiAnalysis',
+      iconName: 'tab-patient-info',
+      iconLabel: 'AI Analysis',
+      label: 'AI Analysis',
+      secondaryLabel: 'AI Analysis',
+      component: WrappedAiAnalysisPanel,
     },
   ];
 }

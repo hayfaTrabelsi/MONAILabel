@@ -99,7 +99,7 @@ app.include_router(session.router, prefix=settings.MONAI_LABEL_API_STR)
 
 @app.get("/", include_in_schema=False)
 async def custom_swagger_ui_html():
-    html = get_swagger_ui_html(openapi_url=app.openapi_url, title=app.title + " - APIs")
+    html = get_swagger_ui_html(openapi_url="./openapi.json", title=app.title + " - APIs")
 
     body = html.body.decode("utf-8")
     body = body.replace("showExtensions: true,", "showExtensions: true, defaultModelsExpandDepth: -1,")

@@ -16,6 +16,7 @@ import PropTypes from 'prop-types';
 
 import './MonaiLabelPanel.styl';
 import SegmentationList from './SegmentationList';
+import AIAnalysisReport from './AIAnalysisReport';
 import MonaiLabelClient from '../services/MonaiLabelClient';
 import { UINotificationService } from '@ohif/core';
 import { getImageIdsForDisplaySet } from '../utils/SegmentationUtils';
@@ -60,11 +61,13 @@ export default class MonaiLabelPanel extends Component {
     this.state = {
       info: {},
       action: {},
+      analysisData: {},
     };
   }
 
   async componentDidMount() {
     await this.onInfo();
+    await this.fetchAnalysisData();
   }
 
   client = () => {
@@ -75,6 +78,10 @@ export default class MonaiLabelPanel extends Component {
     return new MonaiLabelClient(
       settings ? settings.url : 'http://127.0.0.1:8000'
     );
+  };
+
+  getAnalysis = async (image) => {
+    return await this.client().getAnalysis(image);
   };
 
   getViewConstants = (viewports, studies, activeIndex) => {
@@ -133,6 +140,17 @@ export default class MonaiLabelPanel extends Component {
       });
 
       this.setState({ info: response.data });
+    }
+  };
+
+  fetchAnalysisData = async () => {
+    try {
+      const response = await this.getAnalysis(this.viewConstants.displaySetInstanceUID);
+      if (response && response.data) {
+        this.setState({ analysisData: response.data });
+      }
+    } catch (error) {
+      console.error('Failed to fetch AI analysis data:', error);
     }
   };
 
@@ -257,6 +275,8 @@ export default class MonaiLabelPanel extends Component {
 
         <hr className="seperator" />
         <p className="subtitle">{this.state.info.name}</p>
+
+        <AIAnalysisReport analysisData={this.state.analysisData} />
 
         <div className="tabs scrollbar" id="style-3">
           <OptionTable

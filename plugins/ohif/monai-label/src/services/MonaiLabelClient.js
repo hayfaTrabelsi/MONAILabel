@@ -35,10 +35,10 @@ export default class MonaiLabelClient {
     return this.infer(model, image, params);
   }
 
-  async infer(model, image, params, label = null, result_extension = '.nrrd') {
+  async infer(model, image, params = {}, label = null, result_extension = '.nrrd') {
     let url = new URL('infer/' + encodeURIComponent(model), this.server_url);
     url.searchParams.append('image', image);
-    url.searchParams.append('output', 'image');
+    url.searchParams.append('output', 'json');
     url = url.toString();
 
     if (result_extension) {
@@ -52,8 +52,12 @@ export default class MonaiLabelClient {
       params,
       label,
       true,
-      'arraybuffer'
+      'json'
     );
+  }
+
+  async getAnalysis(image) {
+    return await this.infer('dr_classification', image, {}, null, '.json');
   }
 
   async next_sample(stategy = 'random', params = {}) {

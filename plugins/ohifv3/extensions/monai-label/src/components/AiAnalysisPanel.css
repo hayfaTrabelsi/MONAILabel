@@ -1,0 +1,123 @@
+.aiAnalysisPanel {
+  color: white;
+  padding: 8px;
+  font-size: 13px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.aiAnalysisPanel .reportTitle {
+  font-size: 15px;
+  font-weight: bold;
+  color: #5acce6;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #3a3f4a;
+}
+
+.aiAnalysisPanel .section {
+  margin-bottom: 14px;
+  padding: 8px;
+  background: #2a2f3a;
+  border-radius: 6px;
+}
+
+.aiAnalysisPanel .sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #9bcdff;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #3a3f4a;
+}
+
+.aiAnalysisPanel .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.aiAnalysisPanel .label {
+  color: #aaa;
+}
+
+.aiAnalysisPanel .value {
+  color: #fff;
+  font-weight: 500;
+}
+
+.aiAnalysisPanel .gradeValue {
+  color: #ffa726;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.aiAnalysisPanel .confidenceBar {
+  height: 6px;
+  background: #3a3f4a;
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.aiAnalysisPanel .confidenceFill {
+  height: 100%;
+  background: linear-gradient(90deg, #66bb6a, #ffa726, #ef5350);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.aiAnalysisPanel .loading {
+  text-align: center;
+  padding: 40px 0;
+  color: #888;
+}
+
+.aiAnalysisPanel .loading .spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 12px;
+  border: 3px solid #3a3f4a;
+  border-top: 3px solid #5acce6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.aiAnalysisPanel .error {
+  color: #ef5350;
+  text-align: center;
+  padding: 20px;
+}
+
+.aiAnalysisPanel .noResults {
+  color: #888;
+  text-align: center;
+  padding: 30px 0;
+  font-style: italic;
+}
+
+.aiAnalysisPanel .analyzeButton {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: #5acce6;
+  color: #1a1e2a;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.aiAnalysisPanel .analyzeButton:hover {
+  background: #48bdd9;
+}
+
+.aiAnalysisPanel .analyzeButton:disabled {
+  background: #555;
+  cursor: not-allowed;
+}

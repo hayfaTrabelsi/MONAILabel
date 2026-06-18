@@ -5,6 +5,7 @@ import initToolGroups from './initToolGroups';
 
 const monailabel = {
   monaiLabel: '@ohif/extension-monai-label.panelModule.monailabel',
+  aiAnalysis: '@ohif/extension-monai-label.panelModule.aiAnalysis',
 };
 
 const ohif = {
@@ -71,6 +72,7 @@ function modeFactory({ modeConfiguration }) {
         'Capture',
         'Layout',
         'Crosshairs',
+        'AiAnalysis',
         'MoreTools',
       ]);
 
@@ -168,7 +170,7 @@ function modeFactory({ modeConfiguration }) {
               rightPanelDefaultClosed: false,
               /* leftPanelDefaultClosed: true, */
               leftPanels: [ohif.leftPanel],
-              rightPanels: [monailabel.monaiLabel],
+              rightPanels: [monailabel.monaiLabel, monailabel.aiAnalysis],
               viewports: [
                 {
                   namespace: cornerstone.viewport,

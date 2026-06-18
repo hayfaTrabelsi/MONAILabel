@@ -177,6 +177,17 @@ const toolbarButtons: Button[] = [
     },
   },
   {
+    id: 'AiAnalysis',
+    uiType: 'ohif.toolButton',
+    props: {
+      icon: 'tool-list',
+      label: 'AI Analysis',
+      tooltip: 'Run AI Analysis: segmentation + classification + quantification',
+      commands: 'runAiAnalysis',
+      evaluate: 'evaluate.action',
+    },
+  },
+  {
     id: 'Reset',
     uiType: 'ohif.toolButton',
     props: {

@@ -75,6 +75,12 @@ export default class MonaiLabelClient {
     return await MonaiLabelClient.api_put_data(url, data, 'json');
   }
 
+  async analyze(image, params = {}) {
+    const url = new URL('infer/analyze', this.server_url).toString();
+    const data = { image_uid: image, run_segmentation: true, ...params };
+    return await MonaiLabelClient.api_post(url, data, null, false, 'json');
+  }
+
   async is_train_running() {
     let url = new URL('train/', this.server_url);
     url.searchParams.append('check_if_running', 'true');

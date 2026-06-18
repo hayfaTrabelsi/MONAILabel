@@ -12,6 +12,7 @@
 import json
 import logging
 import os
+import requests
 import pathlib
 import shutil
 import tempfile
@@ -184,6 +185,14 @@ def run_inference(
         image_path = [image_uri.replace(suffix, "") for suffix in suffixes if image_uri.endswith(suffix)][0]
         res_img = result.get("file") if result.get("file") else result.get("label")
         dicom_seg_file = nifti_to_dicom_seg(image_path, res_img, p.get("label_info"))
+        if dicom_seg_file and os.path.exists(dicom_seg_file):
+            try:
+                orthanc_url = "http://orthanc-container:8042/dicom-web/studies"
+                with open(dicom_seg_file, "rb") as f:
+                    resp = requests.post(orthanc_url, data=f, headers={"Content-Type": "application/dicom"})
+                    logger.info(f"Pushed DICOM-SEG to Orthanc: {resp.status_code}")
+            except Exception as e:
+                logger.error(f"Failed to push DICOM-SEG to Orthanc: {e}")
         result["dicom_seg"] = dicom_seg_file
 
     return send_response(instance.datastore(), result, output, background_tasks)
