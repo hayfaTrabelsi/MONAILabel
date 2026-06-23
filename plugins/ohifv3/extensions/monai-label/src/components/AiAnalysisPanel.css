@@ -121,3 +121,94 @@
   background: #555;
   cursor: not-allowed;
 }
+
+.aiAnalysisPanel .reportActions {
+  display: flex;
+  gap: 8px;
+  marginTop: 16px;
+}
+
+.aiAnalysisPanel .reportButton {
+  width: 100%;
+  padding: 10px;
+  marginTop: 8px;
+  background: #7c4dff;
+  color: #fff;
+  border: none;
+  borderRadius: 6px;
+  fontSize: 14px;
+  fontWeight: 600;
+  cursor: pointer;
+}
+
+.aiAnalysisPanel .reportButton:hover {
+  background: #651fff;
+}
+
+.aiAnalysisPanel .reportButton:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+.aiAnalysisPanel .generatedReport {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.aiAnalysisPanel .reportContent h1,
+.aiAnalysisPanel .reportContent h2,
+.aiAnalysisPanel .reportContent h3 {
+  color: #5acce6;
+  marginTop: 16px;
+  marginBottom: 8px;
+}
+
+.aiAnalysisPanel .reportContent p {
+  marginBottom: 8px;
+}
+
+.aiAnalysisPanel .reportContent ul {
+  marginLeft: 20px;
+  marginBottom: 12px;
+}
+
+.aiAnalysisPanel .reportContent li {
+  marginBottom: 4px;
+}
+
+.aiAnalysisPanel .reportContent table {
+  width: 100%;
+  borderCollapse: collapse;
+  marginBottom: 12px;
+}
+
+.aiAnalysisPanel .reportContent th,
+.aiAnalysisPanel .reportContent td {
+  border: 1px solid #3a3f4a;
+  padding: 8px;
+  textAlign: left;
+}
+
+.aiAnalysisPanel .reportContent th {
+  background: #2a2f3a;
+  color: #9bcdff;
+}
+
+.aiAnalysisPanel .reportContent td {
+  color: #ddd;
+}
+
+.aiAnalysisPanel .reportContent hr {
+  border: none;
+  borderTop: 1px solid #3a3f4a;
+  margin: 16px 0;
+}
+
+.aiAnalysisPanel .reportContent em {
+  color: #888;
+  fontSize: 12px;
+}

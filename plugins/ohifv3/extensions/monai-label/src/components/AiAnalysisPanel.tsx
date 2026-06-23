@@ -16,11 +16,21 @@ export default class AiAnalysisPanel extends Component {
       loading: false,
       error: null,
       report: null,
+      generatingReport: false,
+      reportResult: null,
+      reportError: null,
     };
     this.serverURI = 'http://127.0.0.1:8000';
   }
 
   client = () => new MonaiLabelClient(this.serverURI);
+
+  getAuthToken = () => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('teleoph.token');
+    }
+    return null;
+  };
 
   getActiveViewportInfo = () => {
     const { viewportGridService, displaySetService } =
@@ -75,6 +85,69 @@ export default class AiAnalysisPanel extends Component {
       uiNotificationService.show({
         title: 'AI Analysis',
         message: err.message || 'Analysis failed',
+        type: 'error',
+        duration: 6000,
+      });
+    } finally {
+      uiNotificationService.hide(nid);
+    }
+  };
+
+  generateReport = async () => {
+    const { uiNotificationService } = this.props.servicesManager.services;
+    const { report } = this.state;
+    
+    if (!report) {
+      this.setState({ reportError: 'No analysis results available. Run AI Analysis first.' });
+      return;
+    }
+
+    this.setState({ generatingReport: true, reportError: null, reportResult: null });
+
+    const viewportInfo = this.getActiveViewportInfo();
+    const patientId = viewportInfo?.displaySet?.PatientID || viewportInfo?.displaySet?.PatientName || 'Unknown';
+
+    const nid = uiNotificationService.show({
+      title: 'Report Generation',
+      message: 'Generating medical report with AI...',
+      type: 'info',
+      duration: 120000,
+    });
+
+    try {
+      const token = this.getAuthToken();
+      const response = await fetch('/api/exams/generate-report/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          report_data: report,
+          patient_id: patientId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      this.setState({ reportResult: result, generatingReport: false });
+
+      uiNotificationService.show({
+        title: 'Report Generation',
+        message: 'Medical report generated successfully',
+        type: 'success',
+        duration: 4000,
+      });
+    } catch (err) {
+      console.error('Report generation error:', err);
+      this.setState({ generatingReport: false, reportError: err.message || 'Report generation failed' });
+      uiNotificationService.show({
+        title: 'Report Generation',
+        message: err.message || 'Report generation failed',
         type: 'error',
         duration: 6000,
       });
@@ -182,7 +255,7 @@ export default class AiAnalysisPanel extends Component {
   };
 
   render() {
-    const { loading, error, report } = this.state;
+    const { loading, error, report, generatingReport, reportResult, reportError } = this.state;
 
     return (
       <div className="aiAnalysisPanel">
@@ -224,13 +297,71 @@ export default class AiAnalysisPanel extends Component {
         {report && (
           <div>
             {this.renderReport()}
-            <button
-              className="analyzeButton"
-              onClick={this.runAnalysis}
-              style={{ marginTop: '16px' }}
-            >
-              Run Again
-            </button>
+            <div className="reportActions">
+              <button
+                className="analyzeButton"
+                onClick={this.runAnalysis}
+                style={{ marginRight: '8px' }}
+              >
+                Run Analysis Again
+              </button>
+              <button
+                className="reportButton"
+                onClick={this.generateReport}
+                disabled={generatingReport}
+              >
+                {generatingReport ? 'Generating Report...' : 'Generate Report'}
+              </button>
+            </div>
+            
+            {reportError && (
+              <div className="error" style={{ marginTop: '16px' }}>
+                {reportError}
+              </div>
+            )}
+
+            {reportResult && (
+              <div className="generatedReport" style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #444' }}>
+                <h3 style={{ color: '#fff', marginBottom: '12px' }}>Generated Medical Report</h3>
+                <div 
+                  className="reportContent"
+                  style={{ 
+                    background: '#1a1a1a', 
+                    padding: '16px', 
+                    borderRadius: '8px',
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    color: '#ddd',
+                    lineHeight: '1.6'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: reportResult.report_html }}
+                />
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                  <button
+                    className="analyzeButton"
+                    onClick={() => this.setState({ reportResult: null })}
+                  >
+                    Close Report
+                  </button>
+                  <button
+                    className="reportButton"
+                    onClick={() => {
+                      const printWindow = window.open('', '_blank');
+                      printWindow.document.write(`
+                        <html>
+                          <head><title>Medical Report</title></head>
+                          <body>${reportResult.report_html}</body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                      printWindow.print();
+                    }}
+                  >
+                    Print Report
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
