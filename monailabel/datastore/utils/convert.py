@@ -272,6 +272,21 @@ def _highdicom_nifti_to_dicom_seg(
     image_datasets = sorted(image_datasets, key=spatial_sort_key)
     logger.info(f"Total Source Images: {len(image_datasets)}")
 
+    # Inject synthetic geometry into ALL source datasets that lack mandatory spatial tags.
+    # Fundus / OP modality images typically have no ImagePositionPatient or FrameOfReferenceUID,
+    # which causes highdicom to fail when building PerFrameFunctionalGroupsSequence references.
+    import hashlib as _hashlib
+    for _i, _src_ds in enumerate(image_datasets):
+        if not hasattr(_src_ds, "FrameOfReferenceUID"):
+            _src_ds.FrameOfReferenceUID = (
+                "2.25." + _hashlib.md5(str(_src_ds.SOPInstanceUID).encode()).hexdigest()[:39]
+            )
+        if not hasattr(_src_ds, "ImagePositionPatient"):
+            _src_ds.ImagePositionPatient = [0.0, 0.0, float(_i)]
+            _src_ds.ImageOrientationPatient = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+            _src_ds.SliceThickness = 1.0
+            _src_ds.SpacingBetweenSlices = 1.0
+
     # Load label using SimpleITK for correct axis ordering (D, H, W)
     # SimpleITK natively gives (D, H, W) which matches DICOM/highdicom expectations
     mask = SimpleITK.ReadImage(label)
@@ -284,6 +299,18 @@ def _highdicom_nifti_to_dicom_seg(
     for new_idx, orig_idx in enumerate(unique_labels, start=1):
         remapped_array[seg_array == orig_idx] = new_idx
     seg_array = remapped_array
+
+    # Build per-segment BINARY one-hot masks for OHIF / Cornerstone3D compatibility.
+    # BINARY type (SOP class 1.2.840.10008.5.1.4.1.1.66.4) has broad viewer support,
+    # unlike the newer LABELMAP type which OHIF partially supports.
+    # Resulting shape: (D, H, W, n_segs) where each last-axis slice is a uint8 boolean mask.
+    _n_segs = len(segment_descriptions)
+    if seg_array.ndim == 2:
+        seg_array = seg_array[np.newaxis, ...]  # Ensure at least (1, H, W)
+    _binary_array = np.stack(
+        [(seg_array == (s + 1)).astype(np.uint8) for s in range(_n_segs)],
+        axis=-1,
+    )
 
     # Get software version
     try:
@@ -298,13 +325,13 @@ def _highdicom_nifti_to_dicom_seg(
     MAX_SERIES_NUMBER = 9999
     series_number = int(dt_now.strftime("%H%M%S")) % (MAX_SERIES_NUMBER + 1)
 
-    # Create DICOM SEG using highdicom
-    # Use LABELMAP type for indexed labelmap (integer array with values 0..N)
-    # BINARY type requires 4D one-hot encoding (F, H, W, S)
+    # Create DICOM SEG using highdicom BINARY type.
+    # BINARY uses 4D one-hot pixel_array (D, H, W, n_segs) and has the widest OHIF/
+    # Cornerstone3D support (SOP Class 1.2.840.10008.5.1.4.1.1.66.4).
     seg = hd.seg.Segmentation(
         source_images=image_datasets,
-        pixel_array=seg_array,
-        segmentation_type=hd.seg.SegmentationTypeValues.LABELMAP,
+        pixel_array=_binary_array,
+        segmentation_type=hd.seg.SegmentationTypeValues.BINARY,
         segment_descriptions=segment_descriptions,
         series_instance_uid=hd.UID(),
         series_number=series_number,
@@ -385,6 +412,132 @@ def _highdicom_nifti_to_dicom_seg(
     output_file = tempfile.NamedTemporaryFile(suffix=".dcm", delete=False).name
     seg.save_as(output_file)
     logger.info(f"DICOM SEG saved to: {output_file}")
+
+    # Post-process: enforce StudyInstanceUID and ReferencedSeriesSequence from source images.
+    # highdicom should inherit these from source_images, but when source DICOM files were
+    # modified locally (geometry injection), there can be a mismatch.  Correcting them here
+    # guarantees OHIF can locate the SEG within the same study as the source series.
+    try:
+        if image_datasets:
+            _src_study_uid = (
+                str(image_datasets[0].StudyInstanceUID)
+                if hasattr(image_datasets[0], "StudyInstanceUID")
+                else None
+            )
+            _src_series_uid = (
+                str(image_datasets[0].SeriesInstanceUID)
+                if hasattr(image_datasets[0], "SeriesInstanceUID")
+                else None
+            )
+            # Build a set of valid SOPInstanceUIDs from the source images
+            _valid_sop_uids = {
+                str(ds.SOPInstanceUID)
+                for ds in image_datasets
+                if hasattr(ds, "SOPInstanceUID")
+            }
+            if _src_study_uid or _src_series_uid or _valid_sop_uids:
+                _seg_ds = dcmread(output_file)
+                _modified = False
+                if _src_study_uid and str(_seg_ds.StudyInstanceUID) != _src_study_uid:
+                    _seg_ds.StudyInstanceUID = _src_study_uid
+                    _modified = True
+                    logger.info(f"Fixed SEG StudyInstanceUID → {_src_study_uid}")
+                if _src_series_uid and hasattr(_seg_ds, "ReferencedSeriesSequence"):
+                    for _ref_s in _seg_ds.ReferencedSeriesSequence:
+                        if (
+                            hasattr(_ref_s, "SeriesInstanceUID")
+                            and str(_ref_s.SeriesInstanceUID) != _src_series_uid
+                        ):
+                            _ref_s.SeriesInstanceUID = _src_series_uid
+                            _modified = True
+                            logger.info(
+                                f"Fixed SEG ReferencedSeriesSequence SeriesUID → {_src_series_uid}"
+                            )
+
+                # Fix ReferencedSOPInstanceUID in all functional groups sequences.
+                # Cornerstone3D reads these to map each SEG frame back to its source
+                # image in the viewport stack.  If the UID is wrong or missing, OHIF
+                # throws "No imageId found for SOPInstanceUID".
+                if _valid_sop_uids:
+                    _source_sop_list = [
+                        str(ds.SOPInstanceUID)
+                        for ds in image_datasets
+                        if hasattr(ds, "SOPInstanceUID")
+                    ]
+
+                    # Validate frame count against source image count
+                    if hasattr(_seg_ds, "PerFrameFunctionalGroupsSequence"):
+                        _n_frames = len(_seg_ds.PerFrameFunctionalGroupsSequence)
+                        _n_sources = len(_source_sop_list)
+                        if _n_frames != _n_sources:
+                            logger.warning(
+                                f"Frame count mismatch: SEG has {_n_frames} frames "
+                                f"but source has {_n_sources} images. "
+                                f"Frame-to-image mapping may be incorrect."
+                            )
+
+                    def _fix_sop_ref(_fg_item, _frame_idx, _sop_list, _uid_set):
+                        _local_mod = False
+                        # Path 1: DerivationImageSequence > SourceImageSequence
+                        if hasattr(_fg_item, "DerivationImageSequence"):
+                            for _deriv in _fg_item.DerivationImageSequence:
+                                if hasattr(_deriv, "SourceImageSequence"):
+                                    for _src_ref in _deriv.SourceImageSequence:
+                                        if not hasattr(_src_ref, "ReferencedSOPInstanceUID"):
+                                            continue
+                                        _cur_uid = str(_src_ref.ReferencedSOPInstanceUID)
+                                        if _cur_uid not in _uid_set:
+                                            _replacement = (
+                                                _sop_list[_frame_idx]
+                                                if _frame_idx < len(_sop_list)
+                                                else _sop_list[0]
+                                            )
+                                            logger.warning(
+                                                f"Frame {_frame_idx}: ReferencedSOPInstanceUID "
+                                                f"{_cur_uid[:60]}... not in source set → "
+                                                f"patching to {_replacement[:60]}..."
+                                            )
+                                            _src_ref.ReferencedSOPInstanceUID = _replacement
+                                            _local_mod = True
+                        # Path 2: ReferencedImageSequence (direct references)
+                        if hasattr(_fg_item, "ReferencedImageSequence"):
+                            for _src_ref in _fg_item.ReferencedImageSequence:
+                                if not hasattr(_src_ref, "ReferencedSOPInstanceUID"):
+                                    continue
+                                _cur_uid = str(_src_ref.ReferencedSOPInstanceUID)
+                                if _cur_uid not in _uid_set:
+                                    _replacement = (
+                                        _sop_list[_frame_idx]
+                                        if _frame_idx < len(_sop_list)
+                                        else _sop_list[0]
+                                    )
+                                    logger.warning(
+                                        f"Frame {_frame_idx} (ReferencedImageSequence): "
+                                        f"ReferencedSOPInstanceUID {_cur_uid[:60]}... "
+                                        f"not in source set → patching to {_replacement[:60]}..."
+                                    )
+                                    _src_ref.ReferencedSOPInstanceUID = _replacement
+                                    _local_mod = True
+                        return _local_mod
+
+                    # Fix PerFrameFunctionalGroupsSequence (1 item per frame)
+                    if hasattr(_seg_ds, "PerFrameFunctionalGroupsSequence"):
+                        for _fi, _fg in enumerate(_seg_ds.PerFrameFunctionalGroupsSequence):
+                            if _fix_sop_ref(_fg, _fi, _source_sop_list, _valid_sop_uids):
+                                _modified = True
+
+                    # Fix SharedFunctionalGroupsSequence (shared across frames)
+                    if hasattr(_seg_ds, "SharedFunctionalGroupsSequence"):
+                        for _sfg in _seg_ds.SharedFunctionalGroupsSequence:
+                            for _fi_shared in range(len(_source_sop_list)):
+                                if _fix_sop_ref(_sfg, _fi_shared, _source_sop_list, _valid_sop_uids):
+                                    _modified = True
+
+                if _modified:
+                    _seg_ds.save_as(output_file)
+                    logger.info("SEG re-saved with corrected study/series/SOP UIDs")
+    except Exception as _post_e:
+        logger.warning(f"SEG UID post-processing skipped: {_post_e}")
 
     return output_file
 
