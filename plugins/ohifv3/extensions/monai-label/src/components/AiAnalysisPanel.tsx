@@ -75,10 +75,10 @@ export default class AiAnalysisPanel extends Component {
 
   loadSavedReport = async () => {
     const viewportInfo = this.getActiveViewportInfo();
-    const seriesUid = viewportInfo?.displaySet?.SeriesInstanceUID;
+    const studyUid = viewportInfo?.displaySet?.StudyInstanceUID;
 
     // The sidebar can mount just before OHIF finishes creating its viewport.
-    if (!seriesUid) {
+    if (!studyUid) {
       if (this.savedReportLoadAttempts < 10) {
         this.savedReportLoadAttempts += 1;
         this.savedReportTimer = window.setTimeout(this.loadSavedReport, 300);
@@ -89,7 +89,7 @@ export default class AiAnalysisPanel extends Component {
     try {
       const token = this.getAuthToken();
       const response = await fetch(
-        `/api/exams/medical-reports/?examination_id=${encodeURIComponent(seriesUid)}&limit=1`,
+        `/api/exams/medical-reports/?examination_id=${encodeURIComponent(studyUid)}&limit=1`,
         {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         }
@@ -101,6 +101,14 @@ export default class AiAnalysisPanel extends Component {
       const reports = await response.json();
       const savedReport = Array.isArray(reports) ? reports[0] : null;
       if (!savedReport) {
+        this.setState({
+          report: null,
+          reportResult: null,
+          editableReportText: '',
+          reportId: null,
+          saved: false,
+          notes: [],
+        });
         return;
       }
 
@@ -124,7 +132,17 @@ export default class AiAnalysisPanel extends Component {
 
   runAnalysis = async () => {
     const { uiNotificationService } = this.props.servicesManager.services;
-    this.setState({ loading: true, error: null, report: null });
+    this.setState({
+      loading: true,
+      error: null,
+      report: null,
+      reportResult: null,
+      reportError: null,
+      editableReportText: '',
+      reportId: null,
+      saved: false,
+      notes: [],
+    });
 
     const viewportInfo = this.getActiveViewportInfo();
     if (!viewportInfo || !viewportInfo.displaySet) {
@@ -265,12 +283,13 @@ export default class AiAnalysisPanel extends Component {
     const { uiNotificationService } = this.props.servicesManager.services;
     const viewportInfo = this.getActiveViewportInfo();
     const seriesUid = viewportInfo?.displaySet?.SeriesInstanceUID;
+    const studyUid = viewportInfo?.displaySet?.StudyInstanceUID;
     const patientId = viewportInfo?.displaySet?.PatientID || viewportInfo?.displaySet?.PatientName || 'Unknown';
 
-    if (!seriesUid) {
+    if (!seriesUid || !studyUid) {
       uiNotificationService.show({
         title: 'Save Report',
-        message: 'No series UID available',
+        message: 'No study or series UID available',
         type: 'error',
         duration: 4000,
       });
@@ -290,7 +309,10 @@ export default class AiAnalysisPanel extends Component {
         const resp = await fetch(`/api/exams/medical-reports/${reportId}/`, {
           method: 'PUT',
           headers,
-          body: JSON.stringify({ doctor_content: editableReportText }),
+          body: JSON.stringify({
+            doctor_content: editableReportText,
+            study_instance_uid: studyUid,
+          }),
         });
         if (!resp.ok) throw new Error('Failed to update report');
       } else {
@@ -299,7 +321,8 @@ export default class AiAnalysisPanel extends Component {
           headers,
           body: JSON.stringify({
             patient_id: patientId,
-            examination_id: seriesUid,
+            examination_id: studyUid,
+            study_instance_uid: studyUid,
             ai_content: editableReportText,
             ai_report_data: report,
           }),
@@ -310,6 +333,14 @@ export default class AiAnalysisPanel extends Component {
       }
 
       this.setState({ saving: false, saved: true });
+      localStorage.setItem(
+        'teleoph.exam-status-updated',
+        JSON.stringify({
+          studyInstanceUid: studyUid,
+          status: 'Interprété',
+          timestamp: Date.now(),
+        })
+      );
 
       uiNotificationService.show({
         title: 'Save Report',
@@ -332,11 +363,15 @@ export default class AiAnalysisPanel extends Component {
   loadNotes = async () => {
     const viewportInfo = this.getActiveViewportInfo();
     if (!viewportInfo || !viewportInfo.displaySet) return;
-    const seriesUid = viewportInfo.displaySet.SeriesInstanceUID;
+    const studyUid = viewportInfo.displaySet.StudyInstanceUID;
+    if (!studyUid) {
+      this.setState({ notes: [] });
+      return;
+    }
 
     try {
       const token = this.getAuthToken();
-      const resp = await fetch(`/api/exams/doctor-notes/?series_instance_uid=${encodeURIComponent(seriesUid)}`, {
+      const resp = await fetch(`/api/exams/doctor-notes/?series_instance_uid=${encodeURIComponent(studyUid)}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });
       if (resp.ok) {
@@ -354,7 +389,8 @@ export default class AiAnalysisPanel extends Component {
 
     const viewportInfo = this.getActiveViewportInfo();
     if (!viewportInfo || !viewportInfo.displaySet) return;
-    const seriesUid = viewportInfo.displaySet.SeriesInstanceUID;
+    const studyUid = viewportInfo.displaySet.StudyInstanceUID;
+    if (!studyUid) return;
 
     this.setState({ savingNote: true });
     try {
@@ -366,7 +402,9 @@ export default class AiAnalysisPanel extends Component {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          series_instance_uid: seriesUid,
+          // The API field keeps its historical name, but the study UID is
+          // required here because imported series UIDs may be duplicated.
+          series_instance_uid: studyUid,
           eye: selectedEye,
           text: noteText.trim(),
         }),
