@@ -38,9 +38,9 @@ function getPanelModule({
     },
     {
       name: 'aiAnalysis',
-      iconName: 'tab-patient-info',
-      iconLabel: 'AI Analysis',
-      label: 'AI Analysis',
+      iconName: 'tab-segmentation',
+      iconLabel: 'Classification',
+      label: 'Classification',
       secondaryLabel: 'AI Analysis',
       component: WrappedAiAnalysisPanel,
     },

@@ -131,7 +131,7 @@ export default class MonaiLabelClient {
   static api_get(url) {
     console.debug('GET:: ' + url);
     return axios
-      .get(url)
+      .get(url, { timeout: 10000 })
       .then(function (response) {
         console.debug(response);
         return response;

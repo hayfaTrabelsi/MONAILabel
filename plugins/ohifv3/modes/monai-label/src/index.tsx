@@ -68,10 +68,8 @@ function modeFactory({ modeConfiguration }) {
         'WindowLevel',
         'Pan',
         'Zoom',
-        'TrackballRotate',
         'Capture',
         'Layout',
-        'Crosshairs',
         'AiAnalysis',
         'MoreTools',
       ]);
@@ -94,7 +92,6 @@ function modeFactory({ modeConfiguration }) {
       toolbarService.updateSection('MoreTools', [
         'Reset',
         'flipHorizontal',
-        'ReferenceLines',
         'ImageOverlayViewer',
         'StackScroll',
         'invert',
@@ -105,7 +102,6 @@ function modeFactory({ modeConfiguration }) {
         'RectangleROI',
         'CalibrationLine',
         'TagBrowser',
-        'AdvancedMagnify',
         'UltrasoundDirectionalTool',
         'WindowLevelRegion',
       ]);
@@ -185,7 +181,7 @@ function modeFactory({ modeConfiguration }) {
     /** List of extensions that are used by the mode */
     extensions: extensionDependencies,
     /** HangingProtocol used by the mode */
-    hangingProtocol: 'mpr',
+    hangingProtocol: ohif.hangingProtocol,
     // hangingProtocol: [''],
     /** SopClassHandlers used by the mode */
     sopClassHandlers: [ohif.sopClassHandler, segmentation.sopClassHandler],

@@ -298,11 +298,6 @@ export default class PointPrompts extends BaseTab {
       selectedModel++;
     }
     const model = models.length > 0 ? models[selectedModel] : null;
-    // console.log('Selected Model: ', model);
-    if (!model) {
-      console.log('Something went error..');
-      return null;
-    }
     return model;
   }
 

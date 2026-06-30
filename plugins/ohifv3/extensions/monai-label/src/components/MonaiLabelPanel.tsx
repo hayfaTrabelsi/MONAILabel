@@ -44,6 +44,8 @@ export default class MonaiLabelPanel extends Component {
     classprompts: any;
   };
   serverURI = window.location.origin + '/monai/';
+  pendingSegmentations: any = null;
+  segmentationInitialized = false;
 
   constructor(props) {
     super(props);
@@ -62,15 +64,19 @@ export default class MonaiLabelPanel extends Component {
       info: { models: [], datasets: [] },
       action: {},
       options: {},
+      loading: false,
+      error: null,
     };
   }
 
-  client = () => {
+  client = (serverURI = null) => {
     const settings =
       this.settings && this.settings.current && this.settings.current.state
         ? this.settings.current.state
         : null;
-    return new MonaiLabelClient(settings ? settings.url : this.serverURI);
+    return new MonaiLabelClient(
+      serverURI || (settings ? settings.url : this.serverURI)
+    );
   };
 
   segmentColor(label) {
@@ -102,19 +108,13 @@ export default class MonaiLabelPanel extends Component {
   };
 
   onInfo = async (serverURI) => {
-    const nid = this.notification.show({
-      title: 'MONAI Label',
-      message: 'Connecting to MONAI Label',
-      type: 'info',
-      duration: 2000,
-    });
+    this.setState({ loading: true, error: null });
 
     this.serverURI = serverURI;
-    const response = await this.client().info();
-    console.log(response.data);
+    const response = await this.client(serverURI).info();
 
-    hideNotification(nid, this.notification);
-    if (response.status !== 200) {
+    if (!response || response.status !== 200 || !response.data) {
+      this.setState({ loading: false, error: 'Failed to connect to MONAI Label server' });
       this.notification.show({
         title: 'MONAI Label',
         message: 'Failed to Connect to MONAI Label',
@@ -123,7 +123,6 @@ export default class MonaiLabelPanel extends Component {
       });
       return;
     }
-
     this.notification.show({
       title: 'MONAI Label',
       message: 'Connected to MONAI Label - Successful',
@@ -206,25 +205,9 @@ export default class MonaiLabelPanel extends Component {
     ];
 
     const initialSegs = segmentations[0].config.segments;
-    const volumeLoadObject = cache.getVolume('1');
-    if (!volumeLoadObject) {
-      this.props.commandsManager.runCommand('loadSegmentationsForViewport', {
-        segmentations,
-      });
-
-      // Wait for Above Segmentations to be added/available
-      setTimeout(() => {
-        const { viewport } = this.getActiveViewportInfo();
-        for (const segmentIndex of Object.keys(initialSegs)) {
-          cornerstoneTools.segmentation.config.color.setSegmentIndexColor(
-            viewport.viewportId,
-            '1',
-            initialSegs[segmentIndex].segmentIndex,
-            initialSegs[segmentIndex].color
-          );
-        }
-      }, 1000);
-    }
+    // Creating a labelmap volume can be expensive. Keep the MONAI route fast
+    // and defer it until the user opens a tool that actually needs it.
+    this.pendingSegmentations = segmentations;
 
     const info = {
       models: models,
@@ -237,13 +220,45 @@ export default class MonaiLabelPanel extends Component {
       initialSegs: initialSegs,
     };
 
-    console.log(info);
-    this.setState({ info: info });
-    this.setState({ isDataReady: true }); // Mark as ready
-    this.setState({ options: {} });
+    this.setState({ info: info, isDataReady: true, options: {}, loading: false });
+  };
+
+  ensureSegmentationInitialized = () => {
+    if (
+      this.segmentationInitialized ||
+      !this.pendingSegmentations ||
+      cache.getVolume('1')
+    ) {
+      this.segmentationInitialized = true;
+      return;
+    }
+
+    this.segmentationInitialized = true;
+    const segmentations = this.pendingSegmentations;
+    const initialSegs = segmentations[0].config.segments;
+    this.props.commandsManager.runCommand('loadSegmentationsForViewport', {
+      segmentations,
+    });
+
+    // Wait for the segmentation representation to become available.
+    setTimeout(() => {
+      const { viewport } = this.getActiveViewportInfo();
+      for (const segmentIndex of Object.keys(initialSegs)) {
+        cornerstoneTools.segmentation.config.color.setSegmentIndexColor(
+          viewport.viewportId,
+          '1',
+          initialSegs[segmentIndex].segmentIndex,
+          initialSegs[segmentIndex].color
+        );
+      }
+    }, 1000);
   };
 
   onSelectActionTab = (name) => {
+    if (name === 'segmentation' || name === 'pointprompts' || name === 'classprompts') {
+      this.ensureSegmentationInitialized();
+    }
+
     for (const action of Object.keys(this.actions)) {
       if (this.state.action === action) {
         if (this.actions[action].current) {
@@ -390,13 +405,12 @@ export default class MonaiLabelPanel extends Component {
     );
   };
 
-  async componentDidMount() {
+  componentDidMount() {
     if (this.state.isDataReady) {
       return;
     }
 
-    console.log('(Component Mounted) Ready to Connect to MONAI Server...');
-    // await this.onInfo();
+    this.onInfo(this.serverURI);
   }
 
   onOptionsConfig = () => {
@@ -404,12 +418,28 @@ export default class MonaiLabelPanel extends Component {
   };
 
   render() {
-    const { isDataReady } = this.state;
+    const { isDataReady, loading, error } = this.state;
     return (
-      <div className="monaiLabelPanel">
+      <div
+        className="monaiLabelPanel"
+        onPointerDown={
+          isDataReady ? this.ensureSegmentationInitialized : undefined
+        }
+      >
         <br style={{ margin: '3px' }} />
 
         <SettingsTable ref={this.settings} onInfo={this.onInfo} />
+        {loading && (
+          <div className="monaiLoading">
+            <div className="spinner" />
+            <p className="subtitle">Connecting to MONAI Label server...</p>
+          </div>
+        )}
+        {error && (
+          <div className="monaiError">
+            <p className="subtitle" style={{ color: '#ff6b6b' }}>{error}</p>
+          </div>
+        )}
         {isDataReady && (
           <div style={{ color: 'white' }}>
             <p className="subtitle">{this.state.info.data.name}</p>

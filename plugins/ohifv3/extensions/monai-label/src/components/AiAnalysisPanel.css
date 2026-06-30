@@ -152,7 +152,7 @@
   width: 100%;
   padding: 10px;
   marginTop: 8px;
-  background: #7c4dff;
+  background: #348cfd;
   color: #fff;
   border: none;
   borderRadius: 6px;
@@ -162,7 +162,7 @@
 }
 
 .aiAnalysisPanel .reportButton:hover {
-  background: #651fff;
+  background: #2878dc;
 }
 
 .aiAnalysisPanel .reportButton:disabled {

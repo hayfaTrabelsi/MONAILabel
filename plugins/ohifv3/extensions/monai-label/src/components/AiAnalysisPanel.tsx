@@ -32,11 +32,23 @@ export default class AiAnalysisPanel extends Component {
     this.serverURI = window.location.origin + '/monai/';
     this.reportRef = React.createRef();
     this.panelRef = React.createRef();
+    this.savedReportLoadAttempts = 0;
+    this.savedReportTimer = null;
+  }
+
+  componentDidMount() {
+    this.loadSavedReport();
   }
 
   componentDidUpdate(prevProps, prevState) {
     if (this.state.report && prevState.report !== this.state.report) {
       this.loadNotes();
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.savedReportTimer) {
+      window.clearTimeout(this.savedReportTimer);
     }
   }
 
@@ -59,6 +71,55 @@ export default class AiAnalysisPanel extends Component {
       viewport.displaySetInstanceUIDs[0]
     );
     return { viewport, displaySet };
+  };
+
+  loadSavedReport = async () => {
+    const viewportInfo = this.getActiveViewportInfo();
+    const seriesUid = viewportInfo?.displaySet?.SeriesInstanceUID;
+
+    // The sidebar can mount just before OHIF finishes creating its viewport.
+    if (!seriesUid) {
+      if (this.savedReportLoadAttempts < 10) {
+        this.savedReportLoadAttempts += 1;
+        this.savedReportTimer = window.setTimeout(this.loadSavedReport, 300);
+      }
+      return;
+    }
+
+    try {
+      const token = this.getAuthToken();
+      const response = await fetch(
+        `/api/exams/medical-reports/?examination_id=${encodeURIComponent(seriesUid)}&limit=1`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      if (!response.ok) {
+        return;
+      }
+
+      const reports = await response.json();
+      const savedReport = Array.isArray(reports) ? reports[0] : null;
+      if (!savedReport) {
+        return;
+      }
+
+      const savedContent =
+        savedReport.final_content ||
+        savedReport.doctor_content ||
+        savedReport.ai_content ||
+        '';
+
+      this.setState({
+        report: savedReport.ai_report_data || {},
+        reportResult: { restored: true },
+        editableReportText: savedContent,
+        reportId: savedReport.id,
+        saved: true,
+      });
+    } catch (error) {
+      console.error('Failed to restore saved medical report:', error);
+    }
   };
 
   runAnalysis = async () => {

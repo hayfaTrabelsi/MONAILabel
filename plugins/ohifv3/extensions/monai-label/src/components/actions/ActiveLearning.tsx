@@ -96,6 +96,12 @@ export default class OptionTable extends BaseTab {
   };
 
   async componentDidMount() {
+    const trainers = this.props.info.data.trainers;
+    if (!trainers || Object.keys(trainers).length === 0) {
+      this.setState({ training: false });
+      return;
+    }
+
     const training = await this.props.client().is_train_running();
     this.setState({ training: training });
   }

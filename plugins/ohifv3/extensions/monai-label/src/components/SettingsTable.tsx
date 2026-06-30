@@ -24,10 +24,17 @@ export default class SettingsTable extends Component {
     super(props);
     this.onInfo = props.onInfo;
 
-    const url = CookieUtils.getCookieString(
+    const defaultUrl = window.location.origin + '/monai/';
+    let url = CookieUtils.getCookieString(
       'MONAILABEL_SERVER_URL',
-      'http://' + window.location.host.split(':')[0] + ':8000/'
+      defaultUrl
     );
+    // Older builds stored port 8000, which is not exposed by this deployment.
+    // Migrate that generated value to the same-origin nginx proxy.
+    if (url === `http://${window.location.hostname}:8000/`) {
+      url = defaultUrl;
+      CookieUtils.setCookie('MONAILABEL_SERVER_URL', url);
+    }
     const overlap_segments = CookieUtils.getCookieBool(
       'MONAILABEL_OVERLAP_SEGMENTS',
       true
