@@ -180,7 +180,7 @@ const toolbarButtons: Button[] = [
     id: 'AiAnalysis',
     uiType: 'ohif.toolButton',
     props: {
-      icon: 'tool-list',
+      icon: 'tool-ai-analysis',
       label: 'AI Analysis',
       tooltip: 'Run AI Analysis: segmentation + classification + quantification',
       commands: 'runAiAnalysis',

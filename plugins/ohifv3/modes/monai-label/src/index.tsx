@@ -93,7 +93,6 @@ function modeFactory({ modeConfiguration }) {
 
       toolbarService.updateSection('MoreTools', [
         'Reset',
-        'rotate-right',
         'flipHorizontal',
         'ReferenceLines',
         'ImageOverlayViewer',
@@ -143,7 +142,8 @@ function modeFactory({ modeConfiguration }) {
       // that is not supported by the mode
       const modalitiesArray = modalities.split('\\');
       return {
-        valid: modalitiesArray.includes('CT') || modalitiesArray.includes('MR'),
+        valid: modalitiesArray.includes('CT') || modalitiesArray.includes('MR') ||
+               modalitiesArray.includes('OP') || modalitiesArray.includes('SEG'),
         description:
           'The mode does not support studies that ONLY include the following modalities: SM, OT, DOC',
       };
@@ -174,11 +174,7 @@ function modeFactory({ modeConfiguration }) {
               viewports: [
                 {
                   namespace: cornerstone.viewport,
-                  displaySetsToDisplay: [ohif.sopClassHandler],
-                },
-                {
-                  namespace: segmentation.viewport,
-                  displaySetsToDisplay: [segmentation.sopClassHandler],
+                  displaySetsToDisplay: [ohif.sopClassHandler, segmentation.sopClassHandler],
                 },
               ],
             },

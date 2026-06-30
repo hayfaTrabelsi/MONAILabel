@@ -43,7 +43,7 @@ export default class MonaiLabelPanel extends Component {
     pointprompts: any;
     classprompts: any;
   };
-  serverURI = 'http://127.0.0.1:8000';
+  serverURI = window.location.origin + '/monai/';
 
   constructor(props) {
     super(props);

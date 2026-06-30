@@ -99,6 +99,12 @@ export default class AutoSegmentation extends BaseTab {
       params['label_prompt'] = filteredLabelClasses;
     }
 
+    // SeriesInstanceUID is not unique in some legacy ophthalmology imports.
+    // Always send the active study so MONAI retrieves the source image from
+    // the patient currently displayed in OHIF.
+    params['study_uid'] = displaySet.StudyInstanceUID;
+    params['patient_id'] = displaySet.PatientID;
+
     const response = await this.props
       .client()
       .infer(model, displaySet.SeriesInstanceUID, params);

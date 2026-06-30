@@ -1,5 +1,5 @@
 export default function getCommandsModule({ servicesManager }) {
-  const { uiNotificationService, uiViewportService } = servicesManager.services;
+  const { uiNotificationService } = servicesManager.services;
 
   const actions = {
     setToolActive: ({ toolName }) => {
@@ -11,12 +11,17 @@ export default function getCommandsModule({ servicesManager }) {
       });
     },
     runAiAnalysis: () => {
-      uiNotificationService.show({
-        title: 'AI Analysis',
-        message: 'Open the AI Analysis panel to run analysis.',
-        type: 'info',
-        duration: 3000,
-      });
+      const panelService = servicesManager.services.panelService;
+      if (panelService) {
+        panelService.activatePanel('@ohif/extension-monai-label.panelModule.aiAnalysis', true);
+      } else {
+        uiNotificationService.show({
+          title: 'AI Analysis',
+          message: 'AI Analysis panel is not available.',
+          type: 'error',
+          duration: 3000,
+        });
+      }
     },
   };
 

@@ -4,6 +4,26 @@
   font-size: 13px;
   overflow-y: auto;
   height: 100%;
+  min-width: 200px;
+  max-width: 600px;
+  position: relative;
+}
+
+.aiAnalysisPanel .resizeHandle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background: #3a3f4a;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.aiAnalysisPanel .resizeHandle:hover,
+.aiAnalysisPanel .resizeHandle.active {
+  background: #5acce6;
 }
 
 .aiAnalysisPanel .reportTitle {
@@ -211,4 +231,147 @@
 .aiAnalysisPanel .reportContent em {
   color: #888;
   fontSize: 12px;
+}
+
+.aiAnalysisPanel .doctorNotesSection {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #3a3f4a;
+}
+
+.aiAnalysisPanel .eyeCheckboxes {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.aiAnalysisPanel .eyeCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #bbb;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.aiAnalysisPanel .eyeCheckboxLabel input[type="checkbox"] {
+  accent-color: #5acce6;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.aiAnalysisPanel .noteInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.aiAnalysisPanel .noteTextarea {
+  flex: 1;
+  padding: 8px 10px;
+  background: #1a1e2a;
+  color: #ddd;
+  border: 1px solid #3a3f4a;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.aiAnalysisPanel .noteTextarea:focus {
+  outline: none;
+  border-color: #5acce6;
+}
+
+.aiAnalysisPanel .noteTextarea::placeholder {
+  color: #666;
+}
+
+.aiAnalysisPanel .addNoteButton {
+  padding: 8px 16px;
+  background: #5acce6;
+  color: #1a1e2a;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aiAnalysisPanel .addNoteButton:hover {
+  background: #48bdd9;
+}
+
+.aiAnalysisPanel .addNoteButton:disabled {
+  background: #444;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.aiAnalysisPanel .notesList {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.aiAnalysisPanel .noteItem {
+  padding: 8px 10px;
+  background: #1e222e;
+  border-radius: 6px;
+  border-left: 3px solid #5acce6;
+}
+
+.aiAnalysisPanel .noteMeta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: #888;
+}
+
+.aiAnalysisPanel .noteEye {
+  color: #5acce6;
+  font-weight: 600;
+}
+
+.aiAnalysisPanel .noteAuthor {
+  color: #888;
+}
+
+.aiAnalysisPanel .noteDate {
+  color: #666;
+  margin-left: auto;
+}
+
+.aiAnalysisPanel .noteText {
+  color: #ddd;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.aiAnalysisPanel .editableReportTextarea {
+  width: 100%;
+  padding: 12px;
+  background: #1a1a1a;
+  color: #ddd;
+  border: 1px solid #444;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 300px;
+  box-sizing: border-box;
+}
+
+.aiAnalysisPanel .editableReportTextarea:focus {
+  outline: none;
+  border-color: #5acce6;
 }
